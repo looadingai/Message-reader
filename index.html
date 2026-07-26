@@ -2,305 +2,574 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Mixx SMS Code Reader</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mixx Registration</title>
     <style>
-        * { box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: -apple-system, system-ui, sans-serif;
-            max-width: 450px;
-            margin: 2rem auto;
-            padding: 1rem;
-            background: #f3f4f6;
-        }
-        .card {
-            background: white;
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-        }
-        h1 {
-            font-size: 1.5rem;
-            margin: 0 0 0.5rem 0;
-            color: #1f2937;
-        }
-        .subtitle {
-            color: #6b7280;
-            font-size: 0.95rem;
-            margin-bottom: 1.5rem;
-        }
-        .code-display {
-            background: #f8fafc;
-            border: 2px dashed #d1d5db;
-            border-radius: 12px;
-            padding: 1.5rem;
-            text-align: center;
-            font-family: 'Courier New', monospace;
-            font-size: 1.1rem;
-            word-break: break-all;
-            min-height: 80px;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s;
+            background: #f7fafc;
+            padding: 1rem;
         }
-        .code-display.filled {
-            border-color: #22c55e;
-            background: #f0fdf4;
-            border-style: solid;
-        }
-        #status {
-            margin: 1rem 0;
-            padding: 0.75rem;
-            border-radius: 10px;
-            text-align: center;
-            font-size: 0.9rem;
-            background: #f3f4f6;
-            color: #4b5563;
-        }
-        #status.success { background: #dcfce7; color: #166534; }
-        #status.error { background: #fee2e2; color: #991b1b; }
-        #status.listening { background: #fef9c3; color: #854d0e; }
-        
-        button {
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 420px;
             width: 100%;
-            padding: 0.9rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #1a202c;
+            margin-bottom: 0.25rem;
+        }
+        .sub {
+            color: #718096;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 0.875rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .form-group input:disabled {
+            background: #f7fafc;
+            cursor: not-allowed;
+        }
+        .btn {
+            width: 100%;
+            padding: 0.875rem;
             font-size: 1rem;
             font-weight: 600;
             border: none;
             border-radius: 12px;
-            background: #8b5cf6;
-            color: white;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
-        button:hover { background: #7c3aed; }
-        button:disabled {
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
         }
-        .manual-section {
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid #e5e7eb;
+        .btn-success {
+            background: #48bb78;
+            color: white;
         }
-        .manual-section label {
-            display: block;
+        .btn-success:hover:not(:disabled) {
+            background: #38a169;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #e2e8f0;
+            color: #4a5568;
+        }
+        .btn-outline:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+        }
+        .status {
+            margin: 1rem 0;
+            padding: 0.75rem;
+            border-radius: 12px;
             font-size: 0.9rem;
-            color: #4b5563;
-            margin-bottom: 0.5rem;
+            text-align: center;
+            display: none;
         }
-        .manual-row {
+        .status.show {
+            display: block;
+        }
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .status.error {
+            background: #fed7d7;
+            color: #9b2c2c;
+        }
+        .status.info {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+        .status.loading {
+            background: #fefcbf;
+            color: #744210;
+        }
+        .code-display {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.25rem;
+            letter-spacing: 2px;
+            color: #2d3748;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #e2e8f0;
+            margin: 1rem 0;
+        }
+        .code-display.filled {
+            border-color: #48bb78;
+            border-style: solid;
+            background: #f0fff4;
+            color: #22543d;
+            font-weight: 600;
+        }
+        .flex-row {
             display: flex;
             gap: 0.5rem;
         }
-        .manual-row input {
+        .flex-row .btn {
             flex: 1;
-            padding: 0.7rem;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            font-family: 'Courier New', monospace;
         }
-        .manual-row input:focus {
-            outline: none;
-            border-color: #8b5cf6;
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        .flex-row .btn-outline {
+            padding: 0.625rem;
+            font-size: 0.85rem;
         }
-        .manual-row button {
-            width: auto;
-            padding: 0.7rem 1.5rem;
-            background: #6b7280;
+        .hidden {
+            display: none !important;
         }
-        .manual-row button:hover { background: #4b5563; }
-        .hint {
-            font-size: 0.8rem;
-            color: #9ca3af;
+        .mt-2 {
             margin-top: 1rem;
-            text-align: center;
         }
-        .badge {
-            display: inline-block;
-            background: #e0e7ff;
-            color: #4338ca;
-            padding: 0.2rem 0.6rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: 600;
+        .text-sm {
+            font-size: 0.75rem;
+            color: #a0aec0;
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+        .text-sm code {
+            background: #edf2f7;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }
+        .divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 1.5rem 0;
+        }
+        .otp-hint {
+            font-size: 0.8rem;
+            color: #718096;
+            margin-top: 0.25rem;
         }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h1>📩 Mixx Registration</h1>
-    <p class="subtitle">Auto-detect your SMS code</p>
+    <div class="container">
+        <h1>📱 Mixx by Yas</h1>
+        <p class="sub">Complete your registration</p>
 
-    <div class="code-display" id="codeDisplay">
-        <span style="color: #9ca3af;">Waiting for code...</span>
-    </div>
+        <!-- STEP 1: Phone -->
+        <div id="step1">
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" id="phoneInput" placeholder="+254 700 000 000" />
+            </div>
+            <button class="btn btn-primary" id="sendBtn">Send Code</button>
+        </div>
 
-    <div id="status">⏳ Initializing...</div>
+        <div id="status" class="status"></div>
 
-    <button id="listenBtn">📱 Start Listening for SMS</button>
+        <!-- STEP 2: Code -->
+        <div id="step2" class="hidden">
+            <div class="form-group">
+                <label>Enter the code from SMS</label>
+                <div class="code-display" id="codeDisplay">
+                    <span style="color:#a0aec0; font-size:0.9rem;">Waiting for code...</span>
+                </div>
+                <input type="text" id="codeInput" placeholder="Paste or type code" autocomplete="one-time-code" />
+                <div class="otp-hint">Code is 22 characters: letters and numbers</div>
+            </div>
 
-    <div class="manual-section">
-        <label>Or enter code manually:</label>
-        <div class="manual-row">
-            <input type="text" id="manualInput" placeholder="Paste code here" />
-            <button id="manualBtn">Verify</button>
+            <div class="flex-row">
+                <button class="btn btn-outline" id="listenBtn">📡 Listen</button>
+                <button class="btn btn-outline" id="pasteBtn">📋 Paste</button>
+                <button class="btn btn-outline" id="testBtn">🧪 Test</button>
+            </div>
+
+            <button class="btn btn-success mt-2" id="verifyBtn" disabled>Verify & Complete</button>
+
+            <div class="divider"></div>
+            <button class="btn btn-outline" id="backBtn">← Change Phone</button>
+        </div>
+
+        <div class="text-sm">
+            🔒 Secure • SMS auto-read on Android Chrome 84+ &amp; iOS 16+
         </div>
     </div>
 
-    <div class="hint">
-        <span class="badge">Works on Android Chrome 84+</span>
-        <span class="badge">Requires HTTPS</span>
-        <br />
-        SMS must contain <code>@your-domain.netlify.app</code>
-    </div>
-</div>
+    <script>
+        // ================================================================
+        //  STATE
+        // ================================================================
+        let currentPhone = '';
+        let currentCode = '';
+        let isListening = false;
+        let abortController = null;
 
-<script>
-    const codeDisplay = document.getElementById('codeDisplay');
-    const statusDiv = document.getElementById('status');
-    const listenBtn = document.getElementById('listenBtn');
-    const manualInput = document.getElementById('manualInput');
-    const manualBtn = document.getElementById('manualBtn');
+        // DOM refs
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const phoneInput = document.getElementById('phoneInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const codeInput = document.getElementById('codeInput');
+        const codeDisplay = document.getElementById('codeDisplay');
+        const listenBtn = document.getElementById('listenBtn');
+        const pasteBtn = document.getElementById('pasteBtn');
+        const testBtn = document.getElementById('testBtn');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const backBtn = document.getElementById('backBtn');
+        const statusDiv = document.getElementById('status');
 
-    let isListening = false;
-
-    // ========== EXTRACT CODE FROM MESSAGE ==========
-    function extractCodeFromMessage(text) {
-        // Pattern for alphanumeric codes (20-25 chars like yoLiknbBgbDCRNJjXMtk)
-        const match = text.match(/\b[A-Za-z0-9]{20,25}\b/);
-        if (match) return match[0];
-        
-        // Fallback: look for "code" followed by any alphanumeric string
-        const codeMatch = text.match(/code\s+([A-Za-z0-9]{15,30})/i);
-        if (codeMatch) return codeMatch[1];
-        
-        return null;
-    }
-
-    // ========== UPDATE UI WITH CODE ==========
-    function setCode(code) {
-        if (!code) return;
-        
-        codeDisplay.innerHTML = code;
-        codeDisplay.classList.add('filled');
-        statusDiv.textContent = '✅ Code extracted successfully!';
-        statusDiv.className = 'success';
-        
-        // Auto-fill manual input too
-        manualInput.value = code;
-        
-        // You can trigger next step here (e.g., auto-submit)
-        console.log('🎯 Code detected:', code);
-    }
-
-    // ========== WEBOTP LISTENER ==========
-    async function startListening() {
-        // Check support
-        if (!('OTPCredential' in window)) {
-            statusDiv.textContent = '❌ WebOTP not supported on this browser. Use Android Chrome 84+ or iOS Safari 16+.';
-            statusDiv.className = 'error';
-            listenBtn.disabled = true;
-            return;
+        // ================================================================
+        //  UI HELPERS
+        // ================================================================
+        function showStatus(msg, type = 'info') {
+            statusDiv.textContent = msg;
+            statusDiv.className = `status show ${type}`;
         }
 
-        if (isListening) {
-            statusDiv.textContent = '⏳ Already listening...';
-            return;
+        function hideStatus() {
+            statusDiv.className = 'status';
         }
 
-        try {
-            isListening = true;
-            listenBtn.textContent = '⏳ Listening...';
-            listenBtn.disabled = true;
-            
-            statusDiv.textContent = '📩 Waiting for SMS... Send a test message now.';
-            statusDiv.className = 'listening';
-
-            // Request OTP
-            const credential = await navigator.credentials.get({
-                otp: { transport: ['sms'] }
-            });
-
-            if (credential && credential.code) {
-                // Sometimes WebOTP returns just the code, sometimes the full message
-                const fullMessage = credential.code || '';
-                
-                // Try to extract code from the message
-                const extractedCode = extractCodeFromMessage(fullMessage) || fullMessage;
-                setCode(extractedCode);
-                
-                statusDiv.textContent = '✅ Code auto-detected from SMS!';
-                statusDiv.className = 'success';
+        function setCode(code, source = 'manual') {
+            if (!code || code.length < 10) {
+                showStatus('Invalid code format', 'error');
+                return;
             }
+            currentCode = code;
+            codeDisplay.textContent = code;
+            codeDisplay.className = 'code-display filled';
+            codeInput.value = code;
+            verifyBtn.disabled = false;
+            showStatus(`✅ Code received (${source})`, 'success');
+        }
 
-        } catch (err) {
-            if (err.name === 'AbortError') {
-                statusDiv.textContent = '⏱️ Timeout - no SMS received within 5 minutes.';
+        function goToStep(step) {
+            if (step === 1) {
+                step1.classList.remove('hidden');
+                step2.classList.add('hidden');
+                hideStatus();
+                currentCode = '';
+                codeInput.value = '';
+                codeDisplay.textContent = 'Waiting for code...';
+                codeDisplay.className = 'code-display';
+                verifyBtn.disabled = true;
+                phoneInput.focus();
             } else {
-                statusDiv.textContent = '❌ Error: ' + err.message;
-                console.error(err);
+                step1.classList.add('hidden');
+                step2.classList.remove('hidden');
+                codeInput.focus();
             }
-            statusDiv.className = 'error';
-        } finally {
+        }
+
+        // ================================================================
+        //  EXTRACT CODE FROM SMS (ONLY FOR ALPHANUMERIC CODES)
+        // ================================================================
+        function extractCode(text) {
+            if (!text) return null;
+
+            // Pattern 1: "use the code XXXX" - our SMS format
+            let match = text.match(/use the code ([A-Za-z0-9]{15,30})/i);
+            if (match) return match[1];
+
+            // Pattern 2: Any 20-25 char alphanumeric (our fallback)
+            match = text.match(/\b([A-Za-z0-9]{20,25})\b/);
+            if (match) return match[1];
+
+            // Pattern 3: Code followed by alphanumeric
+            match = text.match(/code[:\s]+([A-Za-z0-9]{15,30})/i);
+            if (match) return match[1];
+
+            return null;
+        }
+
+        // ================================================================
+        //  SEND CODE (STEP 1)
+        // ================================================================
+        sendBtn.addEventListener('click', async () => {
+            const phone = phoneInput.value.trim();
+
+            if (!phone || phone.length < 8) {
+                showStatus('Please enter a valid phone number', 'error');
+                return;
+            }
+
+            // Basic phone validation
+            if (!phone.match(/^[\+\d\s\-\(\)]{8,20}$/)) {
+                showStatus('Invalid phone number format', 'error');
+                return;
+            }
+
+            currentPhone = phone;
+            showStatus(`📤 Sending code to ${phone}...`, 'loading');
+            sendBtn.disabled = true;
+
+            try {
+                // ========================================================
+                // 🔥 REPLACE WITH YOUR ACTUAL API
+                // ========================================================
+                const response = await fetch('/api/send-registration-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone: phone,
+                        // Include domain for WebOTP
+                        domain: window.location.hostname
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to send');
+
+                showStatus(`✅ Code sent to ${phone}!`, 'success');
+                goToStep(2);
+
+                // Auto-listen after 2 seconds
+                setTimeout(() => {
+                    if (!isListening) startWebOTP();
+                }, 2000);
+
+            } catch (err) {
+                console.error('Send error:', err);
+                showStatus('❌ Failed to send. Please try again.', 'error');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        });
+
+        // Enter key on phone
+        phoneInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !sendBtn.disabled) sendBtn.click();
+        });
+
+        // ================================================================
+        //  WEBOTP - AUTO READ (STEP 2)
+        // ================================================================
+        async function startWebOTP() {
+            if (isListening) return;
+
+            // Check support
+            if (!('OTPCredential' in window)) {
+                showStatus('ℹ️ WebOTP not supported. Use Paste or Test.', 'info');
+                return;
+            }
+
+            try {
+                isListening = true;
+                listenBtn.textContent = '⏳ Listening...';
+                listenBtn.disabled = true;
+                showStatus('📩 Waiting for SMS...', 'loading');
+
+                // Cancel previous listener
+                if (abortController) abortController.abort();
+                abortController = new AbortController();
+
+                const credential = await navigator.credentials.get({
+                    otp: { transport: ['sms'] },
+                    signal: abortController.signal
+                });
+
+                if (credential && credential.code) {
+                    // For alphanumeric codes, credential.code is the entire SMS
+                    const code = extractCode(credential.code);
+                    if (code) {
+                        setCode(code, 'WebOTP');
+                        // Auto-verify after 1 second
+                        setTimeout(() => verifyBtn.click(), 1000);
+                    } else {
+                        showStatus('⚠️ SMS received but no code found', 'error');
+                    }
+                }
+
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('WebOTP error:', err);
+                    showStatus('⏱️ Timeout or error. Use Paste or Test.', 'info');
+                }
+            } finally {
+                isListening = false;
+                listenBtn.textContent = '📡 Listen';
+                listenBtn.disabled = false;
+            }
+        }
+
+        listenBtn.addEventListener('click', startWebOTP);
+
+        // ================================================================
+        //  CLIPBOARD PASTE
+        // ================================================================
+        pasteBtn.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                const code = extractCode(text);
+                if (code) {
+                    setCode(code, 'clipboard');
+                } else {
+                    showStatus('❌ No Mixx code found in clipboard', 'error');
+                }
+            } catch (err) {
+                showStatus('❌ Cannot read clipboard. Type manually.', 'error');
+                console.error('Clipboard error:', err);
+            }
+        });
+
+        // ================================================================
+        //  MANUAL INPUT
+        // ================================================================
+        codeInput.addEventListener('input', () => {
+            const code = extractCode(codeInput.value);
+            if (code) {
+                setCode(code, 'manual');
+            } else if (codeInput.value.length > 0) {
+                // If typing but not complete yet
+                if (codeInput.value.length >= 15) {
+                    // Try direct if long enough
+                    setCode(codeInput.value, 'manual');
+                }
+            }
+        });
+
+        // Global paste detection (anywhere on page)
+        document.addEventListener('paste', (e) => {
+            if (step2.classList.contains('hidden')) return;
+            const text = e.clipboardData.getData('text');
+            const code = extractCode(text);
+            if (code) {
+                setCode(code, 'global paste');
+                e.preventDefault(); // Don't also fill input
+            }
+        });
+
+        // ================================================================
+        //  TEST BUTTON
+        // ================================================================
+        testBtn.addEventListener('click', () => {
+            const sample =
+                "You are being registered in Mixx by Yas Super App, use the code yoLiknbBgbDCRNJjXMtk to complete registration. Do not share the code with anybody. For more info contact us on 100. DWvV9aXqDR";
+            const code = extractCode(sample);
+            if (code) {
+                setCode(code, 'test');
+                showStatus('🧪 Test code loaded!', 'success');
+            } else {
+                showStatus('❌ Test failed', 'error');
+            }
+        });
+
+        // ================================================================
+        //  VERIFY CODE
+        // ================================================================
+        verifyBtn.addEventListener('click', async () => {
+            if (!currentCode || currentCode.length < 15) {
+                showStatus('Please enter a valid code', 'error');
+                return;
+            }
+
+            showStatus('✅ Verifying...', 'loading');
+            verifyBtn.disabled = true;
+
+            try {
+                // ========================================================
+                // 🔥 REPLACE WITH YOUR ACTUAL API
+                // ========================================================
+                const response = await fetch('/api/verify-registration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone: currentPhone,
+                        code: currentCode
+                    })
+                });
+
+                if (response.ok) {
+                    showStatus('🎉 Registration complete! Welcome to Mixx!', 'success');
+                    // Redirect to dashboard
+                    // window.location.href = '/dashboard';
+                } else {
+                    const data = await response.json();
+                    showStatus(`❌ ${data.message || 'Invalid code'}`, 'error');
+                    verifyBtn.disabled = false;
+                }
+
+            } catch (err) {
+                console.error('Verify error:', err);
+                showStatus('❌ Network error. Please try again.', 'error');
+                verifyBtn.disabled = false;
+            }
+        });
+
+        // Enter key on code input
+        codeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !verifyBtn.disabled) verifyBtn.click();
+        });
+
+        // ================================================================
+        //  BACK BUTTON
+        // ================================================================
+        backBtn.addEventListener('click', () => {
+            goToStep(1);
+            // Clean up WebOTP
+            if (abortController) abortController.abort();
             isListening = false;
-            listenBtn.textContent = '📱 Start Listening for SMS';
+            listenBtn.textContent = '📡 Listen';
             listenBtn.disabled = false;
+        });
+
+        // ================================================================
+        //  INIT
+        // ================================================================
+        console.log('📱 Mixx Registration ready');
+        console.log('🧪 Click "Test" to load sample code');
+        console.log('📋 Or paste any SMS with a code');
+
+        // Auto-focus phone
+        phoneInput.focus();
+
+ // Check WebOTP support
+        if (!('OTPCredential' in window)) {
+            console.log('ℹ️ WebOTP not supported in this browser');
         }
-    }
-
-    // ========== MANUAL INPUT ==========
-    function handleManualSubmit() {
-        const code = manualInput.value.trim();
-        if (code.length >= 15) {
-            setCode(code);
-            statusDiv.textContent = '✅ Code entered manually!';
-            statusDiv.className = 'success';
-        } else {
-            statusDiv.textContent = '⚠️ Please enter a valid code (minimum 15 characters)';
-            statusDiv.className = 'error';
-        }
-    }
-
-    // ========== EVENT LISTENERS ==========
-    listenBtn.addEventListener('click', startListening);
-
-    manualBtn.addEventListener('click', handleManualSubmit);
-
-    manualInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleManualSubmit();
-    });
-
-    // ========== CLIPBOARD PASTE FALLBACK ==========
-    document.addEventListener('paste', (e) => {
-        const text = e.clipboardData.getData('text');
-        const code = extractCodeFromMessage(text);
-        if (code) {
-            setCode(code);
-            statusDiv.textContent = '✅ Code pasted from clipboard!';
-            statusDiv.className = 'success';
-        }
-    });
-
-    // ========== INIT ==========
-    statusDiv.textContent = '🔍 Click "Start Listening" or paste/type your code.';
-    statusDiv.className = '';
-
-    // Check if browser supports WebOTP
-    if (!('OTPCredential' in window)) {
-        statusDiv.textContent = '⚠️ WebOTP not supported. Use the manual entry or paste method below.';
-        statusDiv.className = 'error';
-        listenBtn.disabled = true;
-        listenBtn.textContent = '❌ Not Supported';
-    } else {
-        statusDiv.textContent = '✅ WebOTP supported! Click below to start.';
-        statusDiv.className = 'success';
-    }
-</script>
+    </script>
 
 </body>
 </html>
