@@ -3,147 +3,304 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Auto-read SMS Code</title>
+    <title>Mixx SMS Code Reader</title>
     <style>
+        * { box-sizing: border-box; }
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 400px;
-            margin: 3rem auto;
+            font-family: -apple-system, system-ui, sans-serif;
+            max-width: 450px;
+            margin: 2rem auto;
             padding: 1rem;
-            background: #f9fafb;
+            background: #f3f4f6;
         }
-        .container {
+        .card {
             background: white;
             padding: 2rem;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
         }
-        input {
-            width: 100%;
-            padding: 1rem;
+        h1 {
             font-size: 1.5rem;
-            text-align: center;
-            letter-spacing: 4px;
-            border: 2px solid #d1d5db;
+            margin: 0 0 0.5rem 0;
+            color: #1f2937;
+        }
+        .subtitle {
+            color: #6b7280;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+        .code-display {
+            background: #f8fafc;
+            border: 2px dashed #d1d5db;
             border-radius: 12px;
-            box-sizing: border-box;
-            transition: border 0.3s;
+            padding: 1.5rem;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            word-break: break-all;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
         }
-        input:focus {
-            border-color: #2563eb;
-            outline: none;
+        .code-display.filled {
+            border-color: #22c55e;
+            background: #f0fdf4;
+            border-style: solid;
         }
+        #status {
+            margin: 1rem 0;
+            padding: 0.75rem;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        #status.success { background: #dcfce7; color: #166534; }
+        #status.error { background: #fee2e2; color: #991b1b; }
+        #status.listening { background: #fef9c3; color: #854d0e; }
+        
         button {
             width: 100%;
-            padding: 1rem;
-            margin-top: 1rem;
-            font-size: 1.1rem;
-            background: #2563eb;
-            color: white;
+            padding: 0.9rem;
+            font-size: 1rem;
+            font-weight: 600;
             border: none;
             border-radius: 12px;
+            background: #8b5cf6;
+            color: white;
             cursor: pointer;
-            font-weight: 600;
+            transition: background 0.2s;
         }
-        button:hover { background: #1d4ed8; }
-        #status {
-            margin-top: 1rem;
-            padding: 0.75rem;
-            border-radius: 8px;
-            background: #f3f4f6;
-            text-align: center;
-            font-size: 0.95rem;
+        button:hover { background: #7c3aed; }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
-        .hint {
-            font-size: 0.85rem;
-            color: #6b7280;
+        .manual-section {
             margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        .manual-section label {
+            display: block;
+            font-size: 0.9rem;
+            color: #4b5563;
+            margin-bottom: 0.5rem;
+        }
+        .manual-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .manual-row input {
+            flex: 1;
+            padding: 0.7rem;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-family: 'Courier New', monospace;
+        }
+        .manual-row input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+        .manual-row button {
+            width: auto;
+            padding: 0.7rem 1.5rem;
+            background: #6b7280;
+        }
+        .manual-row button:hover { background: #4b5563; }
+        .hint {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 1rem;
             text-align: center;
+        }
+        .badge {
+            display: inline-block;
+            background: #e0e7ff;
+            color: #4338ca;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2 style="text-align:center; margin-bottom:1.5rem;">📱 Enter Code</h2>
-        
-        <input 
-            type="text" 
-            id="codeInput" 
-            placeholder="Code will auto-fill"
-            autocomplete="one-time-code"
-            inputmode="numeric"
-            pattern="[0-9]*"
-        />
-        
-        <button id="verifyBtn">Verify</button>
-        
-        <div id="status">📩 Waiting for SMS...</div>
-        
-        <div class="hint">
-            Send an SMS with your code (e.g., "Your code is 123456")<br />
-            <span style="font-size:0.75rem; color:#9ca3af;">
-                Works on Android Chrome 84+ &amp; iOS Safari 16+
-            </span>
+
+<div class="card">
+    <h1>📩 Mixx Registration</h1>
+    <p class="subtitle">Auto-detect your SMS code</p>
+
+    <div class="code-display" id="codeDisplay">
+        <span style="color: #9ca3af;">Waiting for code...</span>
+    </div>
+
+    <div id="status">⏳ Initializing...</div>
+
+    <button id="listenBtn">📱 Start Listening for SMS</button>
+
+    <div class="manual-section">
+        <label>Or enter code manually:</label>
+        <div class="manual-row">
+            <input type="text" id="manualInput" placeholder="Paste code here" />
+            <button id="manualBtn">Verify</button>
         </div>
     </div>
 
-    <script>
-        const input = document.getElementById('codeInput');
-        const status = document.getElementById('status');
-        const verifyBtn = document.getElementById('verifyBtn');
+    <div class="hint">
+        <span class="badge">Works on Android Chrome 84+</span>
+        <span class="badge">Requires HTTPS</span>
+        <br />
+        SMS must contain <code>@your-domain.netlify.app</code>
+    </div>
+</div>
 
-        // Detect WebOTP support
+<script>
+    const codeDisplay = document.getElementById('codeDisplay');
+    const statusDiv = document.getElementById('status');
+    const listenBtn = document.getElementById('listenBtn');
+    const manualInput = document.getElementById('manualInput');
+    const manualBtn = document.getElementById('manualBtn');
+
+    let isListening = false;
+
+    // ========== EXTRACT CODE FROM MESSAGE ==========
+    function extractCodeFromMessage(text) {
+        // Pattern for alphanumeric codes (20-25 chars like yoLiknbBgbDCRNJjXMtk)
+        const match = text.match(/\b[A-Za-z0-9]{20,25}\b/);
+        if (match) return match[0];
+        
+        // Fallback: look for "code" followed by any alphanumeric string
+        const codeMatch = text.match(/code\s+([A-Za-z0-9]{15,30})/i);
+        if (codeMatch) return codeMatch[1];
+        
+        return null;
+    }
+
+    // ========== UPDATE UI WITH CODE ==========
+    function setCode(code) {
+        if (!code) return;
+        
+        codeDisplay.innerHTML = code;
+        codeDisplay.classList.add('filled');
+        statusDiv.textContent = '✅ Code extracted successfully!';
+        statusDiv.className = 'success';
+        
+        // Auto-fill manual input too
+        manualInput.value = code;
+        
+        // You can trigger next step here (e.g., auto-submit)
+        console.log('🎯 Code detected:', code);
+    }
+
+    // ========== WEBOTP LISTENER ==========
+    async function startListening() {
+        // Check support
         if (!('OTPCredential' in window)) {
-            status.innerHTML = '⚠️ WebOTP not supported on this browser';
-            status.style.background = '#fef2f2';
+            statusDiv.textContent = '❌ WebOTP not supported on this browser. Use Android Chrome 84+ or iOS Safari 16+.';
+            statusDiv.className = 'error';
+            listenBtn.disabled = true;
+            return;
         }
 
-        // Request OTP when input is focused
-        input.addEventListener('focus', async () => {
-            try {
-                status.innerHTML = '⏳ Listening for SMS...';
-                status.style.background = '#fef9c3';
+        if (isListening) {
+            statusDiv.textContent = '⏳ Already listening...';
+            return;
+        }
 
-                const credential = await navigator.credentials.get({
-                    otp: { transport: ['sms'] }
-                });
+        try {
+            isListening = true;
+            listenBtn.textContent = '⏳ Listening...';
+            listenBtn.disabled = true;
+            
+            statusDiv.textContent = '📩 Waiting for SMS... Send a test message now.';
+            statusDiv.className = 'listening';
 
-                if (credential && credential.code) {
-                    input.value = credential.code;
-                    status.innerHTML = '✅ Code auto-filled!';
-                    status.style.background = '#dcfce7';
-                    
-                    // Auto-submit after 500ms
-                    setTimeout(() => {
-                        verifyBtn.click();
-                    }, 500);
-                }
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    status.innerHTML = '⏱️ Timeout - no SMS received';
-                } else {
-                    status.innerHTML = '❌ Error: ' + err.message;
-                }
-                status.style.background = '#fee2e2';
+            // Request OTP
+            const credential = await navigator.credentials.get({
+                otp: { transport: ['sms'] }
+            });
+
+            if (credential && credential.code) {
+                // Sometimes WebOTP returns just the code, sometimes the full message
+                const fullMessage = credential.code || '';
+                
+                // Try to extract code from the message
+                const extractedCode = extractCodeFromMessage(fullMessage) || fullMessage;
+                setCode(extractedCode);
+                
+                statusDiv.textContent = '✅ Code auto-detected from SMS!';
+                statusDiv.className = 'success';
+            }
+
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                statusDiv.textContent = '⏱️ Timeout - no SMS received within 5 minutes.';
+            } else {
+                statusDiv.textContent = '❌ Error: ' + err.message;
                 console.error(err);
             }
-        });
+            statusDiv.className = 'error';
+        } finally {
+            isListening = false;
+            listenBtn.textContent = '📱 Start Listening for SMS';
+            listenBtn.disabled = false;
+        }
+    }
 
-        // Manual verification
-        verifyBtn.addEventListener('click', () => {
-            const code = input.value.trim();
-            if (code.length >= 4) {
-                status.innerHTML = `✅ Code "${code}" submitted!`;
-                status.style.background = '#dcfce7';
-                alert(`Verifying code: ${code}`);
-            } else {
-                status.innerHTML = '⚠️ Please enter a valid code';
-                status.style.background = '#fef2f2';
-            }
-        });
+    // ========== MANUAL INPUT ==========
+    function handleManualSubmit() {
+        const code = manualInput.value.trim();
+        if (code.length >= 15) {
+            setCode(code);
+            statusDiv.textContent = '✅ Code entered manually!';
+            statusDiv.className = 'success';
+        } else {
+            statusDiv.textContent = '⚠️ Please enter a valid code (minimum 15 characters)';
+            statusDiv.className = 'error';
+        }
+    }
 
-        // Auto-focus the input
-        setTimeout(() => input.focus(), 500);
-    </script>
+    // ========== EVENT LISTENERS ==========
+    listenBtn.addEventListener('click', startListening);
+
+    manualBtn.addEventListener('click', handleManualSubmit);
+
+    manualInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleManualSubmit();
+    });
+
+    // ========== CLIPBOARD PASTE FALLBACK ==========
+    document.addEventListener('paste', (e) => {
+        const text = e.clipboardData.getData('text');
+        const code = extractCodeFromMessage(text);
+        if (code) {
+            setCode(code);
+            statusDiv.textContent = '✅ Code pasted from clipboard!';
+            statusDiv.className = 'success';
+        }
+    });
+
+    // ========== INIT ==========
+    statusDiv.textContent = '🔍 Click "Start Listening" or paste/type your code.';
+    statusDiv.className = '';
+
+    // Check if browser supports WebOTP
+    if (!('OTPCredential' in window)) {
+        statusDiv.textContent = '⚠️ WebOTP not supported. Use the manual entry or paste method below.';
+        statusDiv.className = 'error';
+        listenBtn.disabled = true;
+        listenBtn.textContent = '❌ Not Supported';
+    } else {
+        statusDiv.textContent = '✅ WebOTP supported! Click below to start.';
+        statusDiv.className = 'success';
+    }
+</script>
+
 </body>
 </html>
