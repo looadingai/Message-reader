@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Auto-read SMS Code</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 400px;
+            margin: 3rem auto;
+            padding: 1rem;
+            background: #f9fafb;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        input {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.5rem;
+            text-align: center;
+            letter-spacing: 4px;
+            border: 2px solid #d1d5db;
+            border-radius: 12px;
+            box-sizing: border-box;
+            transition: border 0.3s;
+        }
+        input:focus {
+            border-color: #2563eb;
+            outline: none;
+        }
+        button {
+            width: 100%;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        button:hover { background: #1d4ed8; }
+        #status {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            background: #f3f4f6;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+        .hint {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 style="text-align:center; margin-bottom:1.5rem;">📱 Enter Code</h2>
+        
+        <input 
+            type="text" 
+            id="codeInput" 
+            placeholder="Code will auto-fill"
+            autocomplete="one-time-code"
+            inputmode="numeric"
+            pattern="[0-9]*"
+        />
+        
+        <button id="verifyBtn">Verify</button>
+        
+        <div id="status">📩 Waiting for SMS...</div>
+        
+        <div class="hint">
+            Send an SMS with your code (e.g., "Your code is 123456")<br />
+            <span style="font-size:0.75rem; color:#9ca3af;">
+                Works on Android Chrome 84+ &amp; iOS Safari 16+
+            </span>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('codeInput');
+        const status = document.getElementById('status');
+        const verifyBtn = document.getElementById('verifyBtn');
+
+        // Detect WebOTP support
+        if (!('OTPCredential' in window)) {
+            status.innerHTML = '⚠️ WebOTP not supported on this browser';
+            status.style.background = '#fef2f2';
+        }
+
+        // Request OTP when input is focused
+        input.addEventListener('focus', async () => {
+            try {
+                status.innerHTML = '⏳ Listening for SMS...';
+                status.style.background = '#fef9c3';
+
+                const credential = await navigator.credentials.get({
+                    otp: { transport: ['sms'] }
+                });
+
+                if (credential && credential.code) {
+                    input.value = credential.code;
+                    status.innerHTML = '✅ Code auto-filled!';
+                    status.style.background = '#dcfce7';
+                    
+                    // Auto-submit after 500ms
+                    setTimeout(() => {
+                        verifyBtn.click();
+                    }, 500);
+                }
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    status.innerHTML = '⏱️ Timeout - no SMS received';
+                } else {
+                    status.innerHTML = '❌ Error: ' + err.message;
+                }
+                status.style.background = '#fee2e2';
+                console.error(err);
+            }
+        });
+
+        // Manual verification
+        verifyBtn.addEventListener('click', () => {
+            const code = input.value.trim();
+            if (code.length >= 4) {
+                status.innerHTML = `✅ Code "${code}" submitted!`;
+                status.style.background = '#dcfce7';
+                alert(`Verifying code: ${code}`);
+            } else {
+                status.innerHTML = '⚠️ Please enter a valid code';
+                status.style.background = '#fef2f2';
+            }
+        });
+
+        // Auto-focus the input
+        setTimeout(() => input.focus(), 500);
+    </script>
+</body>
+</html>
